@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<%- include('../partials/head-meta', { title, description, canonical, ogImage: company.logoUrl, ogType: 'website' }) %>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<%- include('../partials/styles') %>
+<%- include('../partials/jsonld', { data: jsonLd }) %>
+</head>
+<body>
+<%- include('../partials/header') %>
+<div class="wrap">
+  <div class="crumbs"><a href="/postavshiki">Каталог</a> / <%= company.name %></div>
+  <div class="card" style="display:flex;gap:16px;align-items:center">
+    <% if (company.logoUrl) { %><img class="logo" src="<%= company.logoUrl %>" alt="<%= company.name %>"><% } %>
+    <div>
+      <h1 style="margin:0"><%= company.name %></h1>
+      <div style="color:var(--muted);font-size:13px"><%= company.industry || '' %><%= company.city ? ' · ' + company.city : '' %></div>
+    </div>
+  </div>
+  <% if (company.description) { %><p style="margin-top:16px"><%= company.description %></p><% } %>
+  <% if (company.website) { %><p><a href="<%= company.website %>" rel="nofollow noopener" target="_blank">Сайт компании →</a></p><% } %>
+
+  <h2 style="font-size:18px;margin-top:28px">Товары</h2>
+  <div class="grid">
+    <% listings.forEach(function(l) { %>
+      <a class="tile" href="/postavshiki/<%= company.slug %>/<%= l.slug %>">
+        <% if (l.imageUrl) { %><img class="product" src="<%= l.imageUrl %>" alt="<%= l.title %>" loading="lazy"><% } %>
+        <div class="cat"><%= l.category || 'Без категории' %></div>
+        <div style="font-weight:600"><%= l.title %></div>
+        <div class="price"><%= l.price ? new Intl.NumberFormat('ru-RU').format(l.price) + ' ₽' : 'Цена по запросу' %></div>
+      </a>
+    <% }); %>
+  </div>
+</div>
+<%- include('../partials/footer') %>
+</body>
+</html>

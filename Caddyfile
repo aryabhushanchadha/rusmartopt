@@ -1,0 +1,13 @@
+{
+	# Caddy emails this address if a cert renewal is about to fail — set it to
+	# a real inbox you actually check, e.g. admin@rusmartopt.ru.
+	email you@rusmartopt.ru
+}
+
+www.rusmartopt.ru {
+	redir https://rusmartopt.ru{uri} permanent
+}
+
+rusmartopt.ru {
+	reverse_proxy api:3000
+}

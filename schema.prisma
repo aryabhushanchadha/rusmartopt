@@ -1,0 +1,363 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CompanyType {
+  supplier
+  buyer
+}
+
+enum UserRole {
+  supplier
+  buyer
+  admin
+}
+
+enum NotifyChannel {
+  telegram
+  sms
+}
+
+enum Language {
+  ru
+  en
+  zh
+  vi
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+}
+
+enum SubscriptionPlan {
+  software
+  marketplace_full
+}
+
+enum SubscriptionStatus {
+  pending
+  active
+  past_due
+  canceled
+  expired
+}
+
+enum PaymentStatus {
+  pending
+  succeeded
+  canceled
+}
+
+enum PaymentPurpose {
+  initial
+  renewal
+}
+
+model Company {
+  id             String         @id @default(uuid())
+  name           String
+  type           CompanyType
+  industry       String?
+  inn            String?
+  city           String?
+  // Public marketplace profile — slug is lazily assigned (on first listing
+  // publish or first profile save), globally unique, and immutable once set
+  // to avoid broken/redirect-needing URLs later.
+  slug           String?        @unique
+  description    String?
+  logoUrl        String?        @map("logo_url")
+  website        String?
+  // Where to send message notifications (see modules/messaging) — separate
+  // from Order.phone, which is buyer-order-specific, not company-wide.
+  notifyPhone    String?        @map("notify_phone")
+  notifyChannel  NotifyChannel? @map("notify_channel")
+  // Language for SMS/Telegram notifications sent to notifyPhone/notifyChannel
+  // above. Company-level, not User-level: a notification is addressed to
+  // whoever answers that phone/chat, not to a specific logged-in session.
+  notifyLanguage Language       @default(ru) @map("notify_language")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  users                 User[]
+  ordersAsSeller        Order[]        @relation("SellerOrders")
+  ordersAsBuyer         Order[]        @relation("BuyerOrders")
+  telegramLinks         TelegramLink[]
+  listings              Listing[]
+  subscription          Subscription?
+  conversationsAsBuyer  Conversation[] @relation("BuyerConversations")
+  conversationsAsSeller Conversation[] @relation("SellerConversations")
+  messagesSent          Message[]
+
+  @@map("companies")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  companyId    String?  @map("company_id")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String   @map("full_name")
+  role         UserRole
+  // Interface language for this person specifically — distinct from
+  // Company.notifyLanguage below, since multiple users can share one company
+  // but each picks their own dashboard language.
+  language     Language @default(ru)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  company         Company?        @relation(fields: [companyId], references: [id])
+  ordersCreated   Order[]         @relation("OrderCreatedBy")
+  stageLogEntries OrderStageLog[]
+  messagesSent    Message[]
+
+  @@index([companyId])
+  @@map("users")
+}
+
+model Order {
+  id                  String @id @default(uuid())
+  orderCode           String @unique @map("order_code")
+  publicTrackingToken String @unique @map("public_tracking_token")
+
+  sellerCompanyId  String  @map("seller_company_id")
+  buyerCompanyId   String? @map("buyer_company_id")
+  buyerCompanyName String  @map("buyer_company_name")
+
+  product       String
+  qty           Int
+  price         Int
+  city          String
+  phone         String
+  notifyChannel NotifyChannel @map("notify_channel")
+  dueDate       DateTime      @map("due_date")
+
+  stage          Int     @default(0)
+  shipStage      Int?    @map("ship_stage")
+  trackingNumber String? @map("tracking_number")
+
+  createdById String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  sellerCompany Company  @relation("SellerOrders", fields: [sellerCompanyId], references: [id])
+  buyerCompany  Company? @relation("BuyerOrders", fields: [buyerCompanyId], references: [id])
+  createdBy     User?    @relation("OrderCreatedBy", fields: [createdById], references: [id])
+
+  stageLog      OrderStageLog[]
+  notifications Notification[]
+  telegramLinks TelegramLink[]
+
+  @@index([sellerCompanyId])
+  @@index([buyerCompanyId])
+  @@map("orders")
+}
+
+model OrderStageLog {
+  id          String   @id @default(uuid())
+  orderId     String   @map("order_id")
+  fromStage   Int?     @map("from_stage")
+  toStage     Int      @map("to_stage")
+  actorUserId String?  @map("actor_user_id")
+  actorName   String   @map("actor_name")
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+  actor User? @relation(fields: [actorUserId], references: [id])
+
+  @@index([orderId])
+  @@map("order_stage_log")
+}
+
+model TrackingLookupAttempt {
+  id                 String   @id @default(uuid())
+  orderCodeAttempted String   @map("order_code_attempted")
+  ipAddress          String   @map("ip_address")
+  success            Boolean
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@index([orderCodeAttempted, createdAt])
+  @@index([ipAddress, createdAt])
+  @@map("tracking_lookup_attempts")
+}
+
+model Notification {
+  // orderId / conversationId: exactly one is set (app-layer invariant,
+  // enforced in modules/notifications/service.ts — same pattern this
+  // codebase already uses for the order-tracking 404-not-403 convention:
+  // a lightweight app-level rule instead of a rigid DB constraint).
+  id               String             @id @default(uuid())
+  orderId          String?            @map("order_id")
+  conversationId   String?            @map("conversation_id")
+  channel          NotifyChannel
+  recipient        String
+  message          String
+  status           NotificationStatus @default(pending)
+  providerResponse Json?              @map("provider_response")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  sentAt           DateTime?          @map("sent_at")
+
+  order        Order?        @relation(fields: [orderId], references: [id])
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+
+  @@index([orderId])
+  @@index([conversationId])
+  @@map("notifications")
+}
+
+model TelegramLink {
+  id        String   @id @default(uuid())
+  orderId   String?  @map("order_id")
+  companyId String?  @map("company_id")
+  chatId    String   @map("chat_id")
+  linkedAt  DateTime @default(now()) @map("linked_at")
+
+  order   Order?   @relation(fields: [orderId], references: [id])
+  company Company? @relation(fields: [companyId], references: [id])
+
+  @@index([orderId])
+  @@index([companyId])
+  @@map("telegram_links")
+}
+
+model Listing {
+  id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  // Unique per-seller, not globally — two sellers can each have a listing
+  // slugged "stellazh-torgovyy" without colliding, since URLs nest under the
+  // seller's own slug: /postavshiki/:companySlug/:listingSlug.
+  slug        String
+  title       String
+  description String?
+  category    String?
+  price       Int? // rubles, matches Order.price's convention; nullable — "price on request" is normal in B2B
+  unit        String?
+  minOrderQty Int?     @map("min_order_qty")
+  imageUrl    String?  @map("image_url")
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  conversations Conversation[]
+
+  @@unique([companyId, slug])
+  @@index([companyId])
+  @@index([published, updatedAt])
+  @@map("listings")
+}
+
+model Subscription {
+  id                      String             @id @default(uuid())
+  companyId               String             @unique @map("company_id")
+  plan                    SubscriptionPlan
+  status                  SubscriptionStatus @default(pending)
+  // Snapshotted at signup so later price/promo changes never retroactively
+  // alter an existing subscriber's terms.
+  priceRub                Int                @map("price_rub")
+  isPromoPrice            Boolean            @default(false) @map("is_promo_price")
+  currentPeriodStart      DateTime?          @map("current_period_start")
+  currentPeriodEnd        DateTime?          @map("current_period_end")
+  cancelAtPeriodEnd       Boolean            @default(false) @map("cancel_at_period_end")
+  // Saved ЮKassa payment_method.id for off-session renewal charges.
+  yookassaPaymentMethodId String?            @map("yookassa_payment_method_id")
+  createdAt               DateTime           @default(now()) @map("created_at")
+  updatedAt               DateTime           @updatedAt @map("updated_at")
+
+  company  Company   @relation(fields: [companyId], references: [id])
+  payments Payment[]
+
+  @@map("subscriptions")
+}
+
+model Payment {
+  id                String         @id @default(uuid())
+  subscriptionId    String         @map("subscription_id")
+  provider          String         @default("yookassa")
+  providerPaymentId String         @unique @map("provider_payment_id")
+  // Our own key, sent as ЮKassa's Idempotence-Key header on creation — not
+  // to be confused with PaymentWebhookEvent's dedupe, which is on the
+  // *receiving* side. This one is for the *creating* side.
+  idempotenceKey    String         @unique @map("idempotence_key")
+  amountRub         Int            @map("amount_rub")
+  status            PaymentStatus  @default(pending)
+  purpose           PaymentPurpose
+  confirmationUrl   String?        @map("confirmation_url")
+  // Last known re-fetched provider object (via fetchPayment), kept for
+  // support/debugging — never the source of truth itself, just a cache of it.
+  rawPayload        Json?          @map("raw_payload")
+  paidAt            DateTime?      @map("paid_at")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@index([subscriptionId])
+  @@map("payments")
+}
+
+// Idempotency ledger for incoming ЮKassa webhook deliveries. The @@unique
+// constraint below — not application logic — is what guarantees a retried
+// webhook delivery never causes a duplicate state transition or a duplicate
+// notification: the second insert attempt fails on the constraint, and the
+// handler treats that failure as "already processed, no-op, return 200."
+model PaymentWebhookEvent {
+  id                String   @id @default(uuid())
+  providerPaymentId String   @map("provider_payment_id")
+  eventType         String   @map("event_type")
+  payload           Json
+  receivedAt        DateTime @default(now()) @map("received_at")
+
+  @@unique([providerPaymentId, eventType])
+  @@map("payment_webhook_events")
+}
+
+model Conversation {
+  id              String   @id @default(uuid())
+  listingId       String   @map("listing_id")
+  buyerCompanyId  String   @map("buyer_company_id")
+  // Denormalized from listing.companyId at creation time — stays stable and
+  // attributable even if the listing is later edited/deleted.
+  sellerCompanyId String   @map("seller_company_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  lastMessageAt   DateTime @default(now()) @map("last_message_at")
+
+  listing       Listing        @relation(fields: [listingId], references: [id])
+  buyerCompany  Company        @relation("BuyerConversations", fields: [buyerCompanyId], references: [id])
+  sellerCompany Company        @relation("SellerConversations", fields: [sellerCompanyId], references: [id])
+  messages      Message[]
+  notifications Notification[]
+
+  // One thread per buyer per listing — a buyer re-contacting about the same
+  // listing continues the existing thread rather than forking a new one.
+  @@unique([listingId, buyerCompanyId])
+  @@index([buyerCompanyId, lastMessageAt])
+  @@index([sellerCompanyId, lastMessageAt])
+  @@map("conversations")
+}
+
+model Message {
+  id              String    @id @default(uuid())
+  conversationId  String    @map("conversation_id")
+  senderCompanyId String    @map("sender_company_id")
+  senderUserId    String?   @map("sender_user_id")
+  body            String
+  // "Read by the *other* company" — one shared inbox per company, so no
+  // per-user read state is needed, matching how the rest of this app scopes
+  // access at the company level, not the individual-user level.
+  readAt          DateTime? @map("read_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  conversation  Conversation @relation(fields: [conversationId], references: [id])
+  senderCompany Company      @relation(fields: [senderCompanyId], references: [id])
+  senderUser    User?        @relation(fields: [senderUserId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}

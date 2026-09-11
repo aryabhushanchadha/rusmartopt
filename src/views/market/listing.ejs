@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<%- include('../partials/head-meta', { title, description, canonical, ogImage: listing.imageUrl, ogType: 'product' }) %>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<%- include('../partials/styles') %>
+<%- include('../partials/jsonld', { data: jsonLdProduct }) %>
+<%- include('../partials/jsonld', { data: jsonLdBreadcrumbs }) %>
+</head>
+<body>
+<%- include('../partials/header') %>
+<div class="wrap">
+  <div class="crumbs"><a href="/postavshiki">Каталог</a> / <a href="/postavshiki/<%= company.slug %>"><%= company.name %></a> / <%= listing.title %></div>
+
+  <div class="card">
+    <% if (listing.imageUrl) { %><img class="product" src="<%= listing.imageUrl %>" alt="<%= listing.title %>"><% } %>
+    <div class="cat" style="margin-top:14px"><%= listing.category || 'Без категории' %></div>
+    <h1><%= listing.title %></h1>
+    <div style="font-size:13px;color:var(--muted)">Поставщик: <a href="/postavshiki/<%= company.slug %>"><%= company.name %></a><%= company.city ? ' · ' + company.city : '' %></div>
+
+    <div class="price" style="font-size:22px;margin-top:14px">
+      <%= listing.price ? new Intl.NumberFormat('ru-RU').format(listing.price) + ' ₽' : 'Цена по запросу' %>
+      <% if (listing.unit) { %><span style="font-size:14px;color:var(--muted);font-weight:400"> / <%= listing.unit %></span><% } %>
+    </div>
+    <% if (listing.minOrderQty) { %><div style="font-size:13px;color:var(--muted)">Мин. партия: <%= listing.minOrderQty %> <%= listing.unit || 'шт' %></div><% } %>
+
+    <% if (listing.description) { %><p style="margin-top:16px"><%= listing.description %></p><% } %>
+
+    <%# Real now — messaging exists server-side (POST /api/conversations). The
+        SPA lives on a separate origin (FRONTEND_BASE_URL), so this link hands
+        off intent via a query param; an unauthenticated visitor completes
+        login/register there and lands back in the compose flow automatically
+        (see index.html's compose_listing handling). %>
+    <p style="margin-top:20px">
+      <a class="btn" href="<%= frontendBaseUrl %>/?compose_listing=<%= listing.id %>&compose_title=<%= encodeURIComponent(listing.title) %>&compose_company=<%= encodeURIComponent(company.name) %>">Написать поставщику →</a>
+      <% if (company.website) { %>
+        <a class="card" style="display:inline-block;margin-left:10px" href="<%= company.website %>" rel="nofollow noopener" target="_blank">Сайт поставщика →</a>
+      <% } %>
+    </p>
+  </div>
+</div>
+<%- include('../partials/footer') %>
+</body>
+</html>

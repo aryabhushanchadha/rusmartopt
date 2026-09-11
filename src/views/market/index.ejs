@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<%- include('../partials/head-meta', { title, description, canonical, ogImage: null, ogType: 'website' }) %>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<%- include('../partials/styles') %>
+</head>
+<body>
+<%- include('../partials/header') %>
+<div class="wrap">
+  <h1>Каталог производителей</h1>
+  <p style="color:var(--muted)">Реальные товары от поставщиков RuSmartOpt — все отрасли производства.</p>
+
+  <% if (listings.length === 0) { %>
+    <p class="meta-note">Пока нет опубликованных товаров.</p>
+  <% } else { %>
+    <div class="grid">
+      <% listings.forEach(function(l) { %>
+        <a class="tile" href="/postavshiki/<%= l.company.slug %>/<%= l.slug %>">
+          <% if (l.imageUrl) { %><img class="product" src="<%= l.imageUrl %>" alt="<%= l.title %>" loading="lazy"><% } %>
+          <div class="cat"><%= l.category || 'Без категории' %></div>
+          <div style="font-weight:600"><%= l.title %></div>
+          <div style="font-size:13px;color:var(--muted)"><%= l.company.name %></div>
+          <div class="price"><%= l.price ? new Intl.NumberFormat('ru-RU').format(l.price) + ' ₽' : 'Цена по запросу' %></div>
+        </a>
+      <% }); %>
+    </div>
+  <% } %>
+
+  <% if (totalPages > 1) { %>
+    <div class="pager">
+      <% for (let p = 1; p <= totalPages; p++) { %>
+        <% if (p === page) { %><strong><%= p %></strong><% } else { %><a href="/postavshiki?page=<%= p %>"><%= p %></a><% } %>
+      <% } %>
+    </div>
+  <% } %>
+</div>
+<%- include('../partials/footer') %>
+</body>
+</html>

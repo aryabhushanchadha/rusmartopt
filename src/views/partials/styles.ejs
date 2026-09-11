@@ -1,0 +1,34 @@
+<style>
+:root{
+  --accent:#6D5EF6; --accent-ink:#5B4FE0; --accent-soft:#EEEBFE;
+  --ground:#F6F6FB; --surface:#FFFFFF; --ink:#15151F; --ink2:#41414F; --muted:#6E6E80;
+  --line:#EAEAF2; --r:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --accent:#8B7BF7; --accent-ink:#C4B7FB; --accent-soft:#211E38;
+    --ground:#0B0B11; --surface:#14141C; --ink:#ECECF3; --ink2:#C3C3D2; --muted:#9494A6; --line:#242430; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:'Inter',system-ui,sans-serif;line-height:1.5}
+a{color:var(--accent-ink);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:960px;margin:0 auto;padding:24px}
+header.site{padding:16px 24px;border-bottom:1px solid var(--line);background:var(--surface)}
+header.site .brand{font-weight:700;font-size:18px;color:var(--ink)}
+header.site .brand span{color:var(--accent-ink)}
+.crumbs{font-size:13px;color:var(--muted);margin-bottom:16px}
+.crumbs a{color:var(--muted)}
+h1{font-size:26px;margin:0 0 8px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-top:16px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:6px}
+.tile .price{font-weight:700;color:var(--accent-ink)}
+.tile .cat{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.meta-note{font-size:13px;color:var(--muted);background:var(--accent-soft);border-radius:8px;padding:10px 14px;margin-top:16px}
+.btn{display:inline-block;background:var(--accent-ink);color:#fff;padding:11px 18px;border-radius:10px;font-weight:600;font-size:14px;border:none;cursor:pointer}
+.btn:hover{filter:brightness(1.08);text-decoration:none}
+.pager{display:flex;gap:8px;margin-top:20px}
+img.logo{width:48px;height:48px;border-radius:10px;object-fit:cover;background:var(--accent-soft)}
+img.product{width:100%;max-height:320px;object-fit:cover;border-radius:var(--r);border:1px solid var(--line)}
+footer.site{padding:24px;text-align:center;color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin-top:32px}
+</style>

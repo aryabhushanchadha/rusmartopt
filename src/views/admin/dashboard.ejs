@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= title %></title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<%- include('../partials/styles') %>
+<style>
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.dash-top{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+.dash-top .gen{font-size:12px;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:20px 0}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.kpi .l{font-size:12px;color:var(--muted)}
+.kpi .v{font-size:26px;font-weight:700;margin-top:6px}
+.kpi .s{font-size:11.5px;color:var(--muted);margin-top:2px}
+.sec{margin:30px 0 14px}
+.sec h2{font-size:16px;font-weight:600}
+.sec .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.chart{display:flex;align-items:flex-end;gap:3px;height:120px;padding:14px 14px 0;overflow-x:auto}
+.chart .col{flex:1 0 8px;min-width:8px;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative}
+.chart .col:hover .tip{display:block}
+.chart .bar-buyer{background:var(--accent-soft);width:100%}
+.chart .bar-supplier{background:var(--accent-ink);width:100%}
+.chart .tip{display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--surface);font-size:10.5px;padding:3px 6px;border-radius:5px;white-space:nowrap;margin-bottom:4px;z-index:2}
+.chart-legend{display:flex;gap:16px;font-size:12px;color:var(--muted);padding:8px 14px 0}
+.chart-legend span{display:inline-flex;align-items:center;gap:6px}
+.chart-legend i{width:9px;height:9px;border-radius:2px;display:inline-block}
+.funnel{display:flex;flex-direction:column;gap:8px}
+.funnel .row{display:grid;grid-template-columns:220px 1fr 60px;gap:10px;align-items:center;font-size:13px}
+.funnel .bar-track{background:var(--ground);border-radius:6px;height:20px;overflow:hidden}
+.funnel .bar-fill{background:var(--accent-ink);height:100%;border-radius:6px}
+.funnel .pct{text-align:right;color:var(--muted);font-size:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+table.data{width:100%;border-collapse:collapse;font-size:13px}
+table.data th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line)}
+table.data td{padding:8px 10px;border-bottom:1px solid var(--line)}
+table.data tr:last-child td{border-bottom:none}
+.tag-type{font-size:11px;font-weight:600;padding:2px 8px;border-radius:100px}
+.tag-type.supplier{background:var(--accent-soft);color:var(--accent-ink)}
+.tag-type.buyer{background:var(--ground);color:var(--ink2)}
+</style>
+</head>
+<body>
+<%- include('../partials/header') %>
+<div class="wrap" style="max-width:1180px">
+  <div class="dash-top">
+    <h1>Метрики платформы</h1>
+    <div class="gen">Обновлено: <%= metrics.generatedAt.toLocaleString('ru-RU') %> · <a href="/admin">обновить</a></div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="l">Поставщики</div><div class="v mono"><%= metrics.companies.totalSuppliers %></div><div class="s">всего зарегистрировано</div></div>
+    <div class="kpi"><div class="l">Покупатели</div><div class="v mono"><%= metrics.companies.totalBuyers %></div><div class="s">всего зарегистрировано</div></div>
+    <div class="kpi"><div class="l">Активные подписки</div><div class="v mono"><%= (metrics.billing.byStatus.active || 0) %></div><div class="s">маркетплейс + ПО / только ПО</div></div>
+    <div class="kpi"><div class="l">Доход (успешные платежи)</div><div class="v mono"><%= new Intl.NumberFormat('ru-RU').format(metrics.billing.revenueRub) %> ₽</div><div class="s"><%= metrics.billing.paymentsToday %> платежей сегодня</div></div>
+  </div>
+
+  <div class="sec">
+    <h2>Регистрации за 30 дней</h2>
+    <div class="sub">Каждый столбец — один день. Тёмный сегмент — поставщики, светлый — покупатели.</div>
+  </div>
+  <div class="card">
+    <div class="chart-legend"><span><i style="background:var(--accent-ink)"></i>Поставщики</span><span><i style="background:var(--accent-soft)"></i>Покупатели</span></div>
+    <div class="chart">
+      <% metrics.companies.dailyTotals.forEach(function(d, i) { %>
+        <% var s = metrics.companies.dailySuppliers[i].count, b = metrics.companies.dailyBuyers[i].count; %>
+        <div class="col" style="height:<%= Math.max(4, d.count / metrics.companies.maxDaily * 100) %>%">
+          <div class="tip"><%= d.date %>: <%= s %> поставщ. / <%= b %> покуп.</div>
+          <% if (b > 0) { %><div class="bar-buyer" style="height:<%= d.count ? (b / d.count * 100) : 0 %>%"></div><% } %>
+          <% if (s > 0) { %><div class="bar-supplier" style="height:<%= d.count ? (s / d.count * 100) : 0 %>%"></div><% } %>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>Воронка продавцов</h2>
+    <div class="sub">От регистрации до платящего продавца на маркетплейсе.</div>
+  </div>
+  <div class="card" style="padding:16px">
+    <div class="funnel">
+      <% var f = metrics.sellerFunnel; var base = Math.max(1, f.totalSuppliers); %>
+      <div class="row"><span>Зарегистрировано</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="mono pct"><%= f.totalSuppliers %></span></div>
+      <div class="row"><span>Добавили товар</span><div class="bar-track"><div class="bar-fill" style="width:<%= f.withListing / base * 100 %>%"></div></div><span class="mono pct"><%= f.withListing %></span></div>
+      <div class="row"><span>Опубликовали товар</span><div class="bar-track"><div class="bar-fill" style="width:<%= f.withPublishedListing / base * 100 %>%"></div></div><span class="mono pct"><%= f.withPublishedListing %></span></div>
+      <div class="row"><span>Активная подписка</span><div class="bar-track"><div class="bar-fill" style="width:<%= f.withActiveSubscription / base * 100 %>%"></div></div><span class="mono pct"><%= f.withActiveSubscription %></span></div>
+    </div>
+  </div>
+
+  <div class="sec"><h2>Отрасли и маркетплейс</h2></div>
+  <div class="grid2">
+    <div class="card" style="padding:16px">
+      <div class="blk-h" style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:10px">Поставщики по отраслям</div>
+      <table class="data">
+        <thead><tr><th>Отрасль</th><th style="text-align:right">Компаний</th></tr></thead>
+        <tbody>
+          <% metrics.companies.industries.forEach(function(g) { %>
+            <tr><td><%= g.industry %></td><td class="mono" style="text-align:right"><%= g.count %></td></tr>
+          <% }); %>
+          <% if (!metrics.companies.industries.length) { %><tr><td colspan="2" style="color:var(--muted)">Нет данных</td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
+    <div class="card" style="padding:16px">
+      <div class="blk-h" style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:10px">Активность</div>
+      <table class="data">
+        <tbody>
+          <tr><td>Всего товаров</td><td class="mono" style="text-align:right"><%= metrics.marketplace.totalListings %></td></tr>
+          <tr><td>Опубликовано</td><td class="mono" style="text-align:right"><%= metrics.marketplace.publishedListings %></td></tr>
+          <tr><td>Переписок с покупателями</td><td class="mono" style="text-align:right"><%= metrics.marketplace.totalConversations %></td></tr>
+          <tr><td>Сообщений сегодня</td><td class="mono" style="text-align:right"><%= metrics.marketplace.messagesToday %></td></tr>
+          <tr><td>Сообщений за 7 дней</td><td class="mono" style="text-align:right"><%= metrics.marketplace.messagesThisWeek %></td></tr>
+          <tr><td>Промо-мест использовано</td><td class="mono" style="text-align:right"><%= metrics.billing.promoClaimed %> / <%= metrics.billing.promoTotal %></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sec"><h2>Последние регистрации</h2><div class="sub">20 последних компаний — живая лента новых продавцов и покупателей.</div></div>
+  <div class="card" style="padding:4px 16px">
+    <table class="data">
+      <thead><tr><th>Компания</th><th>Тип</th><th>Отрасль</th><th>Город</th><th>Дата</th></tr></thead>
+      <tbody>
+        <% metrics.recentSignups.forEach(function(c) { %>
+          <tr>
+            <td><%= c.name %></td>
+            <td><span class="tag-type <%= c.type %>"><%= c.type === 'supplier' ? 'Поставщик' : 'Покупатель' %></span></td>
+            <td><%= c.industry || '—' %></td>
+            <td><%= c.city || '—' %></td>
+            <td class="mono"><%= c.createdAt.toLocaleString('ru-RU') %></td>
+          </tr>
+        <% }); %>
+        <% if (!metrics.recentSignups.length) { %><tr><td colspan="5" style="color:var(--muted)">Пока нет регистраций</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/footer') %>
+</body>
+</html>

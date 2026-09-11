@@ -1,0 +1,5 @@
+<% /* Generic JSON-LD emitter. `data` is a plain object built in the route
+     handler (TypeScript, testable) — the partial only handles safe
+     serialization: escape "<" so a title/description containing "</script>"
+     can never break out of the script tag. */ %>
+<script type="application/ld+json"><%- JSON.stringify(data).replace(/</g, '\\u003c') %></script>
